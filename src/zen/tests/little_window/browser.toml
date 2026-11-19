@@ -20,6 +20,8 @@ support-files = [
 
 ["browser_little_window_session.js"]
 
+["browser_little_window_space_extensions.js"]
+
 ["browser_little_window_toolbar.js"]
 
 ["browser_little_window_urlbar_only.js"]

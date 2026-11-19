@@ -13,6 +13,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   ZenKeyboardShortcuts:
     "resource:///modules/zen/kbs/ZenKeyboardShortcuts.sys.mjs",
   ZenSessionStore: "resource:///modules/zen/ZenSessionManager.sys.mjs",
+  gZenSpaceExtensions: "resource:///modules/zen/ZenSpaceExtensions.sys.mjs",
 });
 
 ChromeUtils.defineESModuleGetters(
@@ -161,6 +162,7 @@ class nsZenWorkspaces {
 
     window.addEventListener("resize", this.onWindowResize.bind(this));
     this.addPopupListeners();
+    lazy.gZenSpaceExtensions.onWindowOpened(window);
 
     if (this.privateWindowOrDisabled) {
       await delayedStartupPromise;
@@ -731,6 +733,7 @@ class nsZenWorkspaces {
       return;
     }
     this.#activeWorkspace = value;
+    lazy.gZenSpaceExtensions.onActiveSpaceChanged(window);
     if (this.privateWindowOrDisabled) {
       return;
     }
@@ -891,6 +894,7 @@ class nsZenWorkspaces {
         this.activeWorkspace = initialWorkspace.uuid;
       }
     }
+    lazy.gZenSpaceExtensions.addWindow(window);
     let promise = this.#initializeWorkspaces();
     for (const workspace of spacesFromStore) {
       const element = this.workspaceElement(workspace.uuid);
@@ -1311,7 +1315,11 @@ class nsZenWorkspaces {
       "popupshowing",
       this.updateWorkspaceActionsMenu.bind(this)
     );
-    workspaceActions.addEventListener("popuphidden", () => {
+    workspaceActions.addEventListener("popuphidden", event => {
+      // Submenus closing shouldn't forget which space the menu is for
+      if (event.target !== workspaceActions) {
+        return;
+      }
       setTimeout(() => {
         setTimeout(() => {
           this.#contextMenuData = null;
@@ -1374,6 +1382,10 @@ class nsZenWorkspaces {
     // Spaces are managed from the library, so the entry needs it enabled.
     document.getElementById("context_zenManageWorkspaces").hidden =
       !Services.prefs.getBoolPref("zen.library.enabled");
+    const extensionsMenu = document.getElementById(
+      "context_zenWorkspaceExtensions"
+    );
+    extensionsMenu.hidden = this.privateWindowOrDisabled;
     // Call parent node as on windows, the text can be double clicked
     let target;
     try {
@@ -1387,6 +1399,13 @@ class nsZenWorkspaces {
       workspaceId: target?.getAttribute("zen-workspace-id"),
       originalTarget: target,
     };
+    if (!extensionsMenu.hidden) {
+      // Filled ahead of time, so the submenu doesn't open empty
+      lazy.gZenSpaceExtensions.populateMenu(
+        extensionsMenu.menupopup,
+        this.#contextMenuData.workspaceId || this.activeWorkspace
+      );
+    }
     const workspaceName = document.getElementById("context_zenEditWorkspace");
     const themePicker = document.getElementById(
       "context_zenChangeWorkspaceTheme"
@@ -1423,13 +1442,14 @@ class nsZenWorkspaces {
     } else {
       separator.hidden = true;
     }
-    event.target.addEventListener(
-      "popuphidden",
-      () => {
+    const popup = event.target;
+    const onHidden = hiddenEvent => {
+      if (hiddenEvent.target === popup) {
+        popup.removeEventListener("popuphidden", onHidden);
         this.#contextMenuData = null;
-      },
-      { once: true }
-    );
+      }
+    };
+    popup.addEventListener("popuphidden", onHidden);
   }
 
   updateWorkspaceActionsMenuContainer(event) {
@@ -1607,6 +1627,7 @@ class nsZenWorkspaces {
     }
     return Promise.all(promises).then(() => {
       this._workspaceCache = aWorkspaces;
+      lazy.gZenSpaceExtensions.onSpacesChanged(window);
       if (hasChanged) {
         this.#fireSpaceUIUpdate();
       }

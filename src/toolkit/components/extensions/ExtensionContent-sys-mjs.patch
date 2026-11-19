@@ -1,0 +1,23 @@
+diff --git a/toolkit/components/extensions/ExtensionContent.sys.mjs b/toolkit/components/extensions/ExtensionContent.sys.mjs
+index ba7ee925f299ff5f5374651d10f4f3b47216c641..c5c79dea3624c928c08b8b9c9df570773618448c 100644
+--- a/toolkit/components/extensions/ExtensionContent.sys.mjs
++++ b/toolkit/components/extensions/ExtensionContent.sys.mjs
+@@ -519,6 +519,18 @@ class Script {
+     ) {
+       return;
+     }
++    // Zen: extensions can be turned off per Space
++    const zenDisabled = Services.cpmm.sharedData.get(
++      `zen-space-disabled-extensions:${window.browsingContext.browserId}`
++    );
++    if (!this.removeCSS && zenDisabled?.includes(this.extension.id)) {
++      if (!reportExceptions) {
++        throw new ExtensionUtils.ExtensionError(
++          "The extension isn't allowed on pages in this Space"
++        );
++      }
++      return;
++    }
+     this.injectedInto.add(window.document);
+ 
+     let context = this.extension.getContext(window);

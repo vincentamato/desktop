@@ -23,3 +23,5 @@ support-files = [
 ["browser_normal_tabs_order.js"]
 
 ["browser_normal_tabs_projection.js"]
+
+["browser_space_extensions_sync.js"]

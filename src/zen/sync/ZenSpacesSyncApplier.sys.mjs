@@ -40,6 +40,26 @@ ChromeUtils.defineESModuleGetters(lazy, {
 const FIRST_SYNC_ANIMATION_PREF = "zen.spaces-sync.first-sync-animation-shown";
 
 /**
+ * Copies a space's synced `disabledExtensions` into the fields to apply.
+ * Records from older versions don't have it, so ours is kept then.
+ *
+ * @param {object} fields - The space fields about to be applied.
+ * @param {object} data - The incoming space record data.
+ * @param {?object} current - The space as it is now, if it exists.
+ * @returns {boolean} Whether the list changed.
+ */
+function applyDisabledExtensions(fields, data, current) {
+  if (!Array.isArray(data.disabledExtensions)) {
+    return false;
+  }
+  fields.disabledExtensions = data.disabledExtensions;
+  return (
+    canonicalJSON(current?.disabledExtensions ?? []) !==
+    canonicalJSON(data.disabledExtensions)
+  );
+}
+
+/**
  * Applies batches of incoming Spaces records to the local browser.
  */
 class nsZenSpacesSyncApplier {
@@ -339,6 +359,11 @@ class nsZenSpacesSyncApplier {
             canonicalJSON(fields.theme ?? null);
         const containerChanged =
           !current || (current.containerTabId ?? 0) !== fields.containerTabId;
+        const extensionsChanged = applyDisabledExtensions(
+          fields,
+          data,
+          current
+        );
         if (containerChanged) {
           syncLog(
             `space ${data.uuid} containerTabId ` +
@@ -349,7 +374,7 @@ class nsZenSpacesSyncApplier {
         if (!current) {
           list.push(fields);
           changed = true;
-        } else if (visualChanged || containerChanged) {
+        } else if (visualChanged || containerChanged || extensionsChanged) {
           list[index] = { ...current, ...fields };
           changed = true;
         }

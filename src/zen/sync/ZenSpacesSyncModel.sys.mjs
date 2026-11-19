@@ -688,6 +688,11 @@ class nsZenSpacesSyncModel {
           containerGuid: this.guidForContextId(space.containerTabId, {
             create: true,
           }),
+          // Only spaces that ever changed their extensions carry this, so
+          // existing records keep their digests.
+          ...(space.disabledExtensions && {
+            disabledExtensions: space.disabledExtensions,
+          }),
           children: this.#childSequence(ctx, { space: uuid }),
         },
       });

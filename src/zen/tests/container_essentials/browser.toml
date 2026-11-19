@@ -9,6 +9,8 @@ prefs = ["zen.workspaces.separate-essentials=true"]
 
 ["browser_container_specific_essentials.js"]
 
+["browser_essentials_space_extensions.js"]
+
 ["browser_issue_15588.js"]
 
 ["browser_issue_15917.js"]
